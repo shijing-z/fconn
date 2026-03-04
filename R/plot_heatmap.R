@@ -41,6 +41,10 @@
 #'
 #' Works with any Schaefer version (100-1000 parcels, 7 or 17 networks).
 #'
+#' The y-axis is reversed (\code{scale_y_reverse()}) so row 1 appears at the
+#' top, matching conventional matrix layout. Keep this in mind when adding
+#' custom scale layers — replacing the y-scale will flip the orientation.
+#'
 #' @examples
 #' # Basic heatmap of all subjects
 #' indices <- get_indices(ex_conn_array)
