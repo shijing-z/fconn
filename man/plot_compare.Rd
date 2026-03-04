@@ -8,9 +8,8 @@ plot_compare(
   data,
   conn_vars,
   group,
-  sig = TRUE,
   error_bar = c("se", "sd", "ci", "none"),
-  baseline = TRUE,
+  show_zero = TRUE,
   clean_labels = TRUE,
   title = NULL
 )
@@ -25,10 +24,6 @@ compare. Each becomes a category on the x-axis}
 \item{group}{Character string naming the grouping column in \code{data}.
 Must be a factor or character column with 2 or more levels}
 
-\item{sig}{Logical. If TRUE (default) and \code{group} has exactly 2
-levels, adds significance stars from Welch's t-test above each bar
-cluster. Ignored when \code{group} has more than 2 levels}
-
 \item{error_bar}{Character. Type of error bar to display. One of:
 \itemize{
 \item \code{"se"} (default): standard error of the mean
@@ -37,7 +32,7 @@ cluster. Ignored when \code{group} has more than 2 levels}
 \item \code{"none"}: no error bars
 }}
 
-\item{baseline}{Logical. If TRUE (default), draw a dotted horizontal
+\item{show_zero}{Logical. If TRUE (default), draw a dotted horizontal
 reference line at y = 0}
 
 \item{clean_labels}{Logical. If TRUE (default), clean column names for
@@ -51,18 +46,13 @@ A \code{ggplot} object that can be further customized with
 standard ggplot2 syntax.
 }
 \description{
-Generate grouped bar plots with error bars and optional significance
-annotations for comparing connectivity metrics between groups.
+Generate grouped bar plots with error bars for comparing connectivity
+metrics between groups.
 }
 \details{
 The function computes per-group summary statistics (mean and error bars)
 from the input data frame, then generates a grouped bar plot with one
 cluster per connectivity variable.
-
-Significance stars use Welch's t-test (two-sided, unequal variance)
-with the following thresholds: *** p < 0.001, ** p < 0.01, * p < 0.05.
-Stars are only available for exactly 2 groups; set \code{sig = FALSE}
-or use more than 2 groups to suppress.
 
 The function works with any column names, not limited to \code{calc_*}
 output. Any numeric columns in the data frame can be used as
@@ -73,11 +63,9 @@ X-axis labels can always be overridden with
 \code{clean_labels} setting.
 }
 \examples{
-# Within-network comparison by group (constructed difference for demo)
+# Within-network comparison by group
 indices <- get_indices(ex_conn_array, roi_include = "schaefer")
 within_df <- calc_within(ex_conn_array, indices)
-within_df$within_default <- within_df$within_default +
-  rep(c(0.3, 0), times = c(5, 5))
 within_df$group <- rep(c("YA", "OA"), times = c(5, 5))
 
 plot_compare(within_df,
@@ -85,7 +73,7 @@ plot_compare(within_df,
   group = "group"
 )
 
-# ROI-to-network comparison without significance stars
+# ROI-to-network comparison
 ahip_df <- calc_conn(ex_conn_array, indices,
   from = "ahip", to = c("default", "cont", "vis")
 )
@@ -93,7 +81,7 @@ ahip_df$group <- rep(c("YA", "OA"), times = c(5, 5))
 
 plot_compare(ahip_df,
   conn_vars = c("ahip_default", "ahip_cont", "ahip_vis"),
-  group = "group", sig = FALSE
+  group = "group"
 )
 
 # Custom labels override clean_labels

@@ -1,7 +1,7 @@
 #' Plot group comparison bar chart
 #'
-#' Generate grouped bar plots with error bars and optional significance
-#' annotations for comparing connectivity metrics between groups.
+#' Generate grouped bar plots with error bars for comparing connectivity
+#' metrics between groups.
 #'
 #' @param data Data frame with one row per subject containing connectivity
 #'   values and a grouping column
@@ -9,9 +9,6 @@
 #'   compare. Each becomes a category on the x-axis
 #' @param group Character string naming the grouping column in \code{data}.
 #'   Must be a factor or character column with 2 or more levels
-#' @param sig Logical. If TRUE (default) and \code{group} has exactly 2
-#'   levels, adds significance stars from Welch's t-test above each bar
-#'   cluster. Ignored when \code{group} has more than 2 levels
 #' @param error_bar Character. Type of error bar to display. One of:
 #'   \itemize{
 #'     \item \code{"se"} (default): standard error of the mean
@@ -19,7 +16,7 @@
 #'     \item \code{"ci"}: 95 percent confidence interval
 #'     \item \code{"none"}: no error bars
 #'   }
-#' @param baseline Logical. If TRUE (default), draw a dotted horizontal
+#' @param show_zero Logical. If TRUE (default), draw a dotted horizontal
 #'   reference line at y = 0
 #' @param clean_labels Logical. If TRUE (default), clean column names for
 #'   x-axis display by replacing underscores with hyphens and applying title
@@ -34,11 +31,6 @@
 #' from the input data frame, then generates a grouped bar plot with one
 #' cluster per connectivity variable.
 #'
-#' Significance stars use Welch's t-test (two-sided, unequal variance)
-#' with the following thresholds: *** p < 0.001, ** p < 0.01, * p < 0.05.
-#' Stars are only available for exactly 2 groups; set \code{sig = FALSE}
-#' or use more than 2 groups to suppress.
-#'
 #' The function works with any column names, not limited to \code{calc_*}
 #' output. Any numeric columns in the data frame can be used as
 #' \code{conn_vars}.
@@ -48,11 +40,9 @@
 #' \code{clean_labels} setting.
 #'
 #' @examples
-#' # Within-network comparison by group (constructed difference for demo)
+#' # Within-network comparison by group
 #' indices <- get_indices(ex_conn_array, roi_include = "schaefer")
 #' within_df <- calc_within(ex_conn_array, indices)
-#' within_df$within_default <- within_df$within_default +
-#'   rep(c(0.3, 0), times = c(5, 5))
 #' within_df$group <- rep(c("YA", "OA"), times = c(5, 5))
 #'
 #' plot_compare(within_df,
@@ -60,7 +50,7 @@
 #'   group = "group"
 #' )
 #'
-#' # ROI-to-network comparison without significance stars
+#' # ROI-to-network comparison
 #' ahip_df <- calc_conn(ex_conn_array, indices,
 #'   from = "ahip", to = c("default", "cont", "vis")
 #' )
@@ -68,7 +58,7 @@
 #'
 #' plot_compare(ahip_df,
 #'   conn_vars = c("ahip_default", "ahip_cont", "ahip_vis"),
-#'   group = "group", sig = FALSE
+#'   group = "group"
 #' )
 #'
 #' # Custom labels override clean_labels
@@ -103,9 +93,8 @@ plot_compare <- function(
   data,
   conn_vars,
   group,
-  sig = TRUE,
   error_bar = c("se", "sd", "ci", "none"),
-  baseline = TRUE,
+  show_zero = TRUE,
   clean_labels = TRUE,
   title = NULL
 ) {
@@ -284,8 +273,8 @@ plot_compare <- function(
       )
   }
 
-  # Add baseline
-  if (baseline) {
+  # Add zero reference line
+  if (show_zero) {
     p <- p +
       ggplot2::geom_hline(
         yintercept = 0,
@@ -293,77 +282,6 @@ plot_compare <- function(
         color = "black",
         linewidth = 0.5
       )
-  }
-
-  # Add significance stars (2-group only)
-  if (sig && n_groups == 2) {
-    sig_df <- do.call(
-      rbind,
-      lapply(conn_vars, function(var) {
-        group1 <- data[[var]][data[[group]] == group_levels[1]]
-        group2 <- data[[var]][data[[group]] == group_levels[2]]
-
-        p_val <- stats::t.test(group1, group2)$p.value
-
-        star <- if (p_val < 0.001) {
-          "***"
-        } else if (p_val < 0.01) {
-          "**"
-        } else if (p_val < 0.05) {
-          "*"
-        } else {
-          ""
-        }
-
-        data.frame(
-          variable = var,
-          star = star,
-          stringsAsFactors = FALSE
-        )
-      })
-    )
-
-    sig_df$variable <- factor(sig_df$variable, levels = conn_vars)
-
-    # Position stars above the tallest bar + error bar in each cluster
-    max_heights <- do.call(
-      rbind,
-      lapply(
-        split(summary_df, summary_df$variable),
-        function(chunk) {
-          data.frame(
-            variable = chunk$variable[1],
-            y_pos = max(chunk$mean_conn + chunk$error, na.rm = TRUE)
-          )
-        }
-      )
-    )
-
-    sig_df <- merge(sig_df, max_heights, by = "variable")
-    sig_df$variable <- factor(sig_df$variable, levels = conn_vars)
-
-    # Add padding above tallest bar
-    y_range <- max(summary_df$mean_conn + summary_df$error, na.rm = TRUE) -
-      min(summary_df$mean_conn - summary_df$error, na.rm = TRUE)
-    sig_df$y_pos <- sig_df$y_pos + y_range * 0.05
-
-    # Only annotate significant results
-    sig_df <- sig_df[sig_df$star != "", ]
-
-    if (nrow(sig_df) > 0) {
-      p <- p +
-        ggplot2::geom_text(
-          data = sig_df,
-          ggplot2::aes(
-            x = variable,
-            y = y_pos,
-            label = star
-          ),
-          inherit.aes = FALSE,
-          size = 6,
-          fontface = "bold"
-        )
-    }
   }
 
   # Add title
