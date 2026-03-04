@@ -14,10 +14,11 @@
 #' @param diag Character. Controls diagonal and triangle display. One of:
 #'   \itemize{
 #'     \item \code{"blank"} (default): set diagonal to NA
-#'     \item \code{"mirror"}: show full symmetric matrix
 #'     \item \code{"lower"}: show lower triangle only
 #'     \item \code{"upper"}: show upper triangle only
 #'   }
+#' @param grid Logical. If TRUE (default), draw network boundary lines
+#'   on the heatmap. Set to FALSE for a cleaner look without grid lines
 #' @param title Optional character string for the plot title
 #'
 #' @return A \code{ggplot} object that can be further customized with
@@ -53,6 +54,9 @@
 #' # Lower triangle only
 #' plot_heatmap(ex_conn_array, indices, diag = "lower", title = "Lower Triangle")
 #'
+#' # Without boundary lines
+#' plot_heatmap(ex_conn_array, indices, grid = FALSE)
+#'
 #' # Schaefer-only heatmap (exclude non-Schaefer ROIs)
 #' indices_sch <- get_indices(ex_conn_array, roi_include = "schaefer")
 #' plot_heatmap(ex_conn_array, indices_sch)
@@ -80,7 +84,8 @@ plot_heatmap <- function(
   conn_array,
   indices,
   subjects = NULL,
-  diag = c("blank", "mirror", "lower", "upper"),
+  diag = c("blank", "lower", "upper"),
+  grid = TRUE,
   title = NULL
 ) {
   # Input validation
@@ -160,9 +165,6 @@ plot_heatmap <- function(
       diag(avg_mat) <- NA
       avg_mat
     },
-    mirror = {
-      avg_mat
-    },
     lower = {
       avg_mat[upper.tri(avg_mat, diag = TRUE)] <- NA
       avg_mat
@@ -179,7 +181,7 @@ plot_heatmap <- function(
 
   # Compute network boundaries and midpoints
   net_sizes <- lengths(indices)
-  boundaries <- cumsum(net_sizes) + 0.5
+  net_bounds <- cumsum(net_sizes) + 0.5
   midpoints <- cumsum(net_sizes) - net_sizes / 2
   net_labels <- names(indices)
 
@@ -216,11 +218,11 @@ plot_heatmap <- function(
     )
 
   # Add network boundary lines (skip last boundary = edge of plot)
-  boundary_positions <- boundaries[-length(boundaries)]
+  boundary_positions <- net_bounds[-length(net_bounds)]
 
-  if (length(boundary_positions) > 0) {
-    if (diag %in% c("blank", "mirror")) {
-      # Full-spanning lines for symmetric displays
+  if (grid && length(boundary_positions) > 0) {
+    if (diag == "blank") {
+      # Full-spanning lines for symmetric display
       p <- p +
         ggplot2::geom_hline(
           yintercept = boundary_positions,
